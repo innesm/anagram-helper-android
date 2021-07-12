@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Anagram</string>
+    <string name="anagram_letters">Anagram Letters</string>
+</resources>
