@@ -10,17 +10,24 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.LinearLayout.VERTICAL
 import android.widget.TextView
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.widget.doAfterTextChanged
+import androidx.lifecycle.ViewModel
 import java.io.BufferedReader
 import java.io.IOException
 import java.io.InputStream
 import java.io.InputStreamReader
-import java.lang.StringBuilder
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.random.Random
 
 data class AnagramLetter(val letter: Char, var assignedIndex: Int = -1)
+
+class AnagramViewModel : ViewModel() {
+    val anagramLetters = ArrayList<AnagramLetter>()
+}
 
 class MainActivity : AppCompatActivity() {
 
@@ -29,8 +36,9 @@ class MainActivity : AppCompatActivity() {
     private val topLetters = ArrayList<TextView>()
     private val topLetterDragTargets = ArrayList<TextView>()
     private val topLetterLayouts = ArrayList<LinearLayout>()
-    private val anagramLetters = ArrayList<AnagramLetter>()
     private val words = ArrayList<String>()
+
+    private lateinit var model : AnagramViewModel
 
     private fun createTextView(text: String): TextView {
         val newWidget = TextView(this)
@@ -48,7 +56,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun buildUI() {
-
         val parentLayout = findViewById<View>(R.id.parentLayout) as ConstraintLayout
         val topLettersLayout = findViewById<View>(R.id.topLettersLayout) as LinearLayout
         val txtCentred = findViewById<View>(R.id.txtCentred) as TextView
@@ -58,7 +65,7 @@ class MainActivity : AppCompatActivity() {
         txtCandidateCount.text = candidateCount.toString()
 
         val unassignedChars =
-            anagramLetters.asIterable().filter { it.assignedIndex == -1 }.sortedBy { Random.Default.nextDouble() }
+            model.anagramLetters.asIterable().filter { it.assignedIndex == -1 }.sortedBy { Random.Default.nextDouble() }
                 .toTypedArray()
 
         // remove existing
@@ -114,7 +121,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         // add top letters
-        for (i in 0 until anagramLetters.size) {
+        for (i in 0 until model.anagramLetters.size) {
 
             // add top letter
             val topLetter = createTextView("_")
@@ -126,7 +133,7 @@ class MainActivity : AppCompatActivity() {
             dragTarget.visibility = View.INVISIBLE
             dragTarget.tag = i
 
-            val assignedLetter = anagramLetters.find { it.assignedIndex == i }
+            val assignedLetter = model.anagramLetters.find { it.assignedIndex == i }
             if (assignedLetter != null) {
                 topLetter.text = assignedLetter.letter.toString()
             }
@@ -145,7 +152,7 @@ class MainActivity : AppCompatActivity() {
             //clicking on an assigned letter un-assigns it
             topLetter.setOnClickListener {
                 val index = it.tag as Int
-                val assignedLetter2 = anagramLetters.find { al -> al.assignedIndex == index }
+                val assignedLetter2 = model.anagramLetters.find { al -> al.assignedIndex == index }
                 assignedLetter2?.assignedIndex = -1
                 buildUI()
             }
@@ -199,7 +206,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d("dnd", "Drop $index")
 
                 // de-assign if assigned
-                val assignedLetter = anagramLetters.find { it.assignedIndex == index }
+                val assignedLetter = model.anagramLetters.find { it.assignedIndex == index }
                 assignedLetter?.assignedIndex = -1
 
                 letter.assignedIndex = index
@@ -231,7 +238,7 @@ class MainActivity : AppCompatActivity() {
                 if (readLine != null) {
                     val word = readLine as String
                     if (word.length in 1..12) {
-                        words.add(word.toUpperCase())
+                        words.add(word.toUpperCase(Locale.getDefault()))
                     }
                 }
             }
@@ -246,9 +253,9 @@ class MainActivity : AppCompatActivity() {
         var anyLettersAssigned = false
 
         val setLetters = ArrayList<Pair<Int, Char>>()
-        val sortedLetters = anagramLetters.map { it.letter }.sorted()
+        val sortedLetters = model.anagramLetters.map { it.letter }.sorted()
 
-        for (anagramLetter in anagramLetters) {
+        for (anagramLetter in model.anagramLetters) {
             if (anagramLetter.assignedIndex != -1) {
                 anyLettersAssigned = true
                 setLetters.add(Pair(anagramLetter.assignedIndex, anagramLetter.letter))
@@ -259,7 +266,7 @@ class MainActivity : AppCompatActivity() {
             return 0
         }
 
-        for (word in words.filter { it.length == anagramLetters.size }) {
+        for (word in words.filter { it.length == model.anagramLetters.size }) {
             var isMatch = true
             for (letter in setLetters) {
                 if (word[letter.first] != letter.second) {
@@ -270,7 +277,7 @@ class MainActivity : AppCompatActivity() {
 
             if (isMatch) {
                 val wordSortedLetters = word.asIterable().sorted()
-                if (wordSortedLetters.equals(sortedLetters)) {
+                if (wordSortedLetters == sortedLetters) {
                     candidateCount++
                 }
             }
@@ -279,6 +286,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        val m: AnagramViewModel by viewModels()
+        model = m
+
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
@@ -293,12 +303,12 @@ class MainActivity : AppCompatActivity() {
             val inputText = it.toString()
 
             // forget trying to preserve existing letters just replace
-            anagramLetters.clear()
-            anagramLetters.addAll(inputText.map { c -> AnagramLetter(c.toUpperCase(), -1) })
+            model.anagramLetters.clear()
+            model.anagramLetters.addAll(inputText.map { c -> AnagramLetter(c.toUpperCase(), -1) })
             buildUI()
         }
 
-        anagramLetters.addAll(txtAnagramLetters.text.map { AnagramLetter(it, -1) })
+        model.anagramLetters.addAll(txtAnagramLetters.text.map { AnagramLetter(it, -1) })
         buildUI()
     }
 }
